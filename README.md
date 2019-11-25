@@ -1,4 +1,4 @@
-bornt as fork of https://github.com/ickerwx/pattern 
+born as fork of https://github.com/ickerwx/pattern 
 
 main differences:
 - by default, the script creates
