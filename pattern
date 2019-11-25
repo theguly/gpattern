@@ -35,41 +35,44 @@ def print_help():
     print 'Usage: %s (c | o) <value> <buflen>' % sys.argv[0]
 
 
-def main():
-    command = ''
-    num_value = ''
-    if len(sys.argv) == 2:
+def check_hex(i):
+    ret = ''
+    if i.startswith('0x'):
+        ret = int(i,16)
+    else:
         try:
-            num_value = int(sys.argv[1])
-            command = 'c'
+            ret = int(i)
         except:
             print_help()
             sys.exit(255)
-    elif len(sys.argv) > 2 and sys.argv[1].lower() in ['c','create','o','offset']:
-        command = sys.argv[1].lower()
-        num_value = sys.argv[2]
-    else:
-        print_help()
-        sys.exit(255)
+    return ret
 
-    #if len(sys.argv) < 3 or sys.argv[1].lower() not in ['create', 'offset']:
-    #    print_help()
-    #    sys.exit(255)
-    #command = sys.argv[1].lower()
-    #num_value = sys.argv[2]
+def main():
+    command = ''
+    num_value = ''
+    # case: ./pattern 400
+    if len(sys.argv) == 2:
+        command = 'c'
+        num_value = check_hex(sys.argv[1])
+        print pattern_create(num_value)
 
-    if command == 'c' or command == 'create':
-        print pattern_create(int(num_value, 16 if num_value.startswith('0x') else 10))
-    else:
-        if len(sys.argv) == 4:
+    elif len(sys.argv) > 2:
+        # case: ./pattern cr 400
+        if sys.argv[1].lower().startswith('c'):
+            command = 'c'
+            num_value = check_hex(sys.argv[2])
+            # do the create
+            print pattern_create(num_value)
+        # case: ./pattern off a1Aa
+        elif sys.argv[1].lower().startswith('o'):
+            command = 'o'
+            # case: ./pattern off a1Aa 10000
             try:
-                buflen = int(sys.argv[3], 16 if sys.argv[3].startswith('0x') else 10)
-            except ValueError:
-                print_help()
-                sys.exit(254)
-        else:
-            buflen = 8192
-        print pattern_offset(num_value, buflen)
+                buflen = check_hex(sys.argv[3])
+            except:
+                buflen = 8192
+            print pattern_offset(sys.argv[2], buflen)
+
 
 if __name__ == '__main__':
     main()
