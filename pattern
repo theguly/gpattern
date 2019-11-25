@@ -1,30 +1,51 @@
 #!/usr/bin/env python
 import sys
 import struct
+from string import ascii_lowercase,ascii_uppercase,digits
 
 
-def pattern_create(length):
+def get_part(bad):
+    parts = [[], [], []]
+    # prolly TODO: do not repeat myself
+    for c in ascii_uppercase:
+        if not c in bad:
+            parts[0].append(c)
+
+    for c in ascii_lowercase:
+        if not c in bad:
+            parts[1].append(c)
+
+    for c in digits:
+        if not c in bad:
+            parts[2].append(c)
+
+    return parts
+
+def pattern_create(length,bad):
     pattern = ''
-    parts = ['A', 'a', '0']
+    parts = get_part(bad)
     while len(pattern) != length:
-        pattern += parts[len(pattern) % 3]
-        if len(pattern) % 3 == 0:
-            parts[2] = chr(ord(parts[2]) + 1)
-            if parts[2] > '9':
-                parts[2] = '0'
-                parts[1] = chr(ord(parts[1]) + 1)
-                if parts[1] > 'z':
-                    parts[1] = 'a'
-                    parts[0] = chr(ord(parts[0]) + 1)
-                    if parts[0] > 'Z':
-                        parts[0] = 'A'
+        idx = len(pattern) % 3
+        pattern += parts[idx][0]
+
+        # should be true when we used all chars in parts[2]
+        # everytime i hit a digit i rotate
+        if idx == 2:
+            parts[2] = parts[2][1:]+parts[2][:1]
+
+        # rotate parts[1] as soon as we did parts[1]*parts[2] iteration
+        if len(pattern) % (len(parts[2])*3) == 0:
+            parts[1] = parts[1][1:]+parts[1][:1]
+        # rotate parts[0] as soon as we did parts[0]*parts[1]*parts[2] iteration
+        if len(pattern) % (len(parts[1])*len(parts[2])*3) == 0:
+            parts[0] = parts[0][1:]+parts[0][:1]
+
     return pattern
 
-
-def pattern_offset(value, buflen):
+def pattern_offset(value, buflen, bad):
     if value.startswith('0x'):
         value = struct.pack('<I', int(value, 16)).strip('\x00')
-    pattern = pattern_create(buflen)
+    pattern = pattern_create(buflen,bad)
     try:
         return pattern.index(value)
     except ValueError:
@@ -32,7 +53,10 @@ def pattern_offset(value, buflen):
 
 
 def print_help():
-    print 'Usage: %s (c | o) <value> <buflen>' % sys.argv[0]
+    print 'Usage:'
+    print '%s create <len> [\\xbadchars]' % sys.argv[0]
+    print '%s offset <value> <len> [\\xbadchars]' % sys.argv[0]
+    sys.exit()
 
 
 def check_hex(i):
@@ -44,25 +68,35 @@ def check_hex(i):
             ret = int(i)
         except:
             print_help()
-            sys.exit(255)
     return ret
+
+def get_bad(b):
+    b = b.replace(',','').replace('\\x','').replace('0x','').decode('hex')
+    return [b[i] for i in range(0,len(b))]
 
 def main():
     command = ''
     num_value = ''
+    bad = []
     # case: ./pattern 400
     if len(sys.argv) == 2:
         command = 'c'
         num_value = check_hex(sys.argv[1])
-        print pattern_create(num_value)
+        print pattern_create(num_value,bad)
 
     elif len(sys.argv) > 2:
         # case: ./pattern cr 400
         if sys.argv[1].lower().startswith('c'):
             command = 'c'
             num_value = check_hex(sys.argv[2])
+
+            try:
+                bad = get_bad(sys.argv[3])
+            except:
+                pass
+
             # do the create
-            print pattern_create(num_value)
+            print pattern_create(num_value,bad)
         # case: ./pattern off a1Aa
         elif sys.argv[1].lower().startswith('o'):
             command = 'o'
@@ -71,7 +105,15 @@ def main():
                 buflen = check_hex(sys.argv[3])
             except:
                 buflen = 8192
-            print pattern_offset(sys.argv[2], buflen)
+
+            try:
+                bad = get_bad(sys.argv[4])
+            except:
+                pass
+
+            print pattern_offset(sys.argv[2], buflen, bad)
+    else:
+        print_help()
 
 
 if __name__ == '__main__':
